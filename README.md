@@ -1,10 +1,10 @@
-# ActiveRecord::Precounter [![Build Status](https://travis-ci.org/k0kubun/activerecord-precounter.svg?branch=master)](https://travis-ci.org/k0kubun/activerecord-precounter)
+# ActiveRecord::Prebatcher [![Build Status](https://travis-ci.org/joelvh/activerecord-prebatcher.svg?branch=master)](https://travis-ci.org/joelvh/activerecord-prebatcher)
 
 Yet Another N+1 COUNT Query Killer for ActiveRecord, counter\_cache alternative.  
-ActiveRecord::Precounter allows you to cache count of associated records by eager loading.
+ActiveRecord::Prebatcher allows you to cache count of associated records by eager loading.
 
-This is another version of [activerecord-precount](https://github.com/k0kubun/activerecord-precount),
-which is not elegant but designed to have no monkey-patch to ActiveRecord internal APIs for maintainability.
+This is another version of [activerecord-precounter](https://github.com/k0kubun/activerecord-precounter),
+which can do more than just `count`. You can use other calculations like `sum`, `average`, `minimum`, `maximum` and custom batching.
 
 ## Synopsis
 
@@ -30,13 +30,13 @@ end
 
 #### precount
 
-With activerecord-precounter gem installed, you can use `ActiveRecord::Precounter#precount` method
-to eagerly load counts of associated records.
+With activerecord-prebatcher gem installed, you can use `ActiveRecord::Prebatcher#precount` method
+to eagerly load counts of associated records (which is backwards-compatible with activerecord-precounter gem).
 Like `preload`, it loads counts by multiple queries
 
 ```rb
 tweets = Tweet.all
-ActiveRecord::Precounter.new(tweets).precount(:favorites)
+ActiveRecord::Prebatcher.new(tweets).precount(:favorites)
 tweets.each do |tweet|
   p tweet.favorites_count
 end
@@ -49,13 +49,13 @@ end
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'activerecord-precounter'
+gem 'activerecord-prebatcher'
 ```
 
 ## Limitation
 
 Target `has_many` association must have inversed `belongs_to`.
-i.e. `ActiveRecord::Precounter.new(tweets).precount(:favorites)` needs both `Tweet.has_many(:favorites)` and `Favorite.belongs_to(:tweet)`.
+i.e. `ActiveRecord::Prebatcher.new(tweets).precount(:favorites)` needs both `Tweet.has_many(:favorites)` and `Favorite.belongs_to(:tweet)`.
 
 Unlike [activerecord-precount](https://github.com/k0kubun/activerecord-precount), the cache store is not ActiveRecord association and it does not utilize ActiveRecord preloader.
 Thus you can't use `preload` to eager load counts for nested associations. And currently there's no JOIN support.

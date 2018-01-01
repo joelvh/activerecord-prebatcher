@@ -1,7 +1,7 @@
-require 'active_record/precounter/version'
+require 'active_record/prebatcher/version'
 
 module ActiveRecord
-  class Precounter
+  class Prebatcher
     class MissingInverseOf < StandardError; end
 
     # @param [ActiveRecord::Relation] relation - Parent resources relation.
@@ -11,7 +11,7 @@ module ActiveRecord
 
     # @param [Array<String,Symbol>] association_names - Eager loaded association names. e.g. `[:users, :likes]`
     # @return [Array<ActiveRecord::Base>]
-    def precount(*association_names)
+    def prebatch(*association_names)
       records = @relation.to_a
       return [] if records.empty?
 

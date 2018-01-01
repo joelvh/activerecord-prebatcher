@@ -1,4 +1,4 @@
-RSpec.describe ActiveRecord::Precounter do
+RSpec.describe ActiveRecord::Prebatcher do
   describe '#precount' do
     context 'When the target records exist' do
       before do
@@ -18,7 +18,7 @@ RSpec.describe ActiveRecord::Precounter do
       it 'precounts has_many count properly' do
         expected = Tweet.all.map { |t| t.favorites.count }
         expect(
-          ActiveRecord::Precounter.new(Tweet.all).precount(:favorites).map { |t| t.favorites_count }
+          ActiveRecord::Prebatcher.new(Tweet.all).precount(:favorites).map { |t| t.favorites_count }
         ).to eq(expected)
       end
     end
@@ -31,7 +31,7 @@ RSpec.describe ActiveRecord::Precounter do
 
       it 'returns empty array' do
         expect(
-          ActiveRecord::Precounter.new(Tweet.all).precount(:favorites)
+          ActiveRecord::Prebatcher.new(Tweet.all).precount(:favorites)
         ).to eq([])
       end
     end

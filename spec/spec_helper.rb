@@ -1,5 +1,5 @@
 require 'bundler/setup'
-require 'activerecord-precounter'
+require 'activerecord-prebatcher'
 require 'active_record'
 
 # Just picked from activerecord-precount, originated in ActiveRecord tests.
