@@ -4,7 +4,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'active_record/prebatcher/version'
 
 Gem::Specification.new do |spec|
-  spec.name          = 'activerecord-batcher'
+  spec.name          = 'activerecord-prebatcher'
   spec.version       = ActiveRecord::Prebatcher::VERSION
   spec.authors       = ['Joel Van Horn', 'Takashi Kokubun']
   spec.email         = ['joel@joelvanhorn.com', 'takashikkbn@gmail.com']
