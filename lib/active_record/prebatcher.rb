@@ -11,13 +11,11 @@ module ActiveRecord
 
     # @param [Array<String,Symbol>] association_names - Eager loaded association names. e.g. `[:users, :likes]`
     # @return [Array<ActiveRecord::Base>]
-    def prebatch(*association_names)
-      records = @relation.to_a
-      return [] if records.empty?
+    def precount(*association_names)
+      return [] unless records?
 
       association_names.each do |association_name|
-        association_name = association_name.to_s
-        reflection = @relation.klass.reflections.fetch(association_name)
+        reflection = reflection_for(association_name)
 
         if reflection.inverse_of.nil?
           raise MissingInverseOf.new(
@@ -26,11 +24,9 @@ module ActiveRecord
           )
         end
 
-        count_by_id = reflection.klass.where(reflection.inverse_of.name => @relation).group(
-          reflection.inverse_of.foreign_key
-        ).count
+        count_by_id = scope_for(association_name).count
+        writer      = define_accessor(records.first, association_name)
 
-        writer = define_count_accessor(records.first, association_name)
         records.each do |record|
           record.public_send(writer, count_by_id.fetch(record.id, 0))
         end
@@ -38,12 +34,32 @@ module ActiveRecord
       records
     end
 
+    def records
+      @relation.to_a
+    end
+
+    def records?
+      records.any?
+    end
+
     private
+
+    def scope_for(association_name)
+      reflection = reflection_for(association_name)
+
+      reflection.klass.where(reflection.inverse_of.name => @relation).group(
+        reflection.inverse_of.foreign_key
+      )
+    end
+
+    def reflection_for(association_name)
+      @relation.klass.reflections.fetch(association_name.to_s)
+    end
 
     # @param [ActiveRecord::Base] record
     # @param [String] association_name
     # @return [String] writer method name
-    def define_count_accessor(record, association_name)
+    def define_accessor(record, association_name)
       reader_name = "#{association_name}_count"
       writer_name = "#{reader_name}="
 
