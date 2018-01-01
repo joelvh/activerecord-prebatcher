@@ -12,9 +12,15 @@ module ActiveRecord
     # @param [Array<String,Symbol>] association_names - Eager loaded association names. e.g. `[:users, :likes]`
     # @return [Array<ActiveRecord::Base>]
     def precount(*association_names)
+      pre_calculate!(:count, *association_names)
+    end
+
+    def pre_calculate!(operation, *options)
       return [] unless records?
 
-      association_names.each do |association_name|
+      associations = options_for(*options)
+      
+      associations.each do |association_name, column_names|
         reflection = reflection_for(association_name)
 
         if reflection.inverse_of.nil?
@@ -31,11 +37,12 @@ module ActiveRecord
           record.public_send(writer, count_by_id.fetch(record.id, 0))
         end
       end
+
       records
     end
 
     def records
-      @relation.to_a
+      @records ||= @relation.to_a
     end
 
     def records?
