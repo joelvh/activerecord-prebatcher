@@ -14,15 +14,21 @@ module ActiveRecord
       @batches  = {}
     end
 
+    # `reader_name` - specify attribute name to store result in
+    # `options` [Hash] - :finder, :key_column, :value_fetcher
+    def pre_find(reader_name, options, &value_fetcher)
+      options[:value_fetcher] = value_fetcher if block_given?
+
+      (@batches[:find] ||= {}).merge!(reader_name.to_sym => options)
+      
+      self
+    end
+
     # @param [Array<String,Symbol>] association_name and aggregated column - Eager loaded association names. e.g. `{purchases: :total}`
     # @return [Array<Prebatcher>]
     CALCULATE_OPERATIONS.each do |operation|
       define_method "pre_#{operation}" do |*options|
         pre_calculate(operation, *options)
-      end
-
-      define_method "pre_#{operation}!" do |*options|
-        pre_calculate!(operation, *options)
       end
     end
 
@@ -32,34 +38,14 @@ module ActiveRecord
       self
     end
 
-    def pre_calculate!(operation, *options)
-      return [] unless records?
-
-      associations = options_for(*options)
-
-      associations.each do |association_name, column_name|
-        results_by_id = scope_for(association_name).public_send(operation, column_name)
-        reader = [association_name, column_name, operation].compact.join('_')
-        writer = define_accessor(records.first, reader)
-
-        records.each do |record|
-          record.public_send(writer, results_by_id.fetch(record.id, 0))
-        end
+    def find_each(options = {}, &block)
+      @relation.find_in_batches(options) do |records|
+        apply_binders(records, &block)
       end
-
-      records
     end
 
-    def prebatch!
-      unless prebatched?
-        @batches.each do |operation, options|
-          public_send(:"pre_#{operation}!", options)
-        end
-
-        @prebatched = true
-      end
-
-      records
+    def prebatch!(&block)
+      apply_binders(@relation, &block)
     end
 
     alias_method :to_a, :prebatch!
@@ -67,26 +53,66 @@ module ActiveRecord
     
     def_delegators :to_a, :[], :pretty_print
 
-    def prebatched?
-      @relation.loaded? && @prebatched == true
-    end
-
-    def records
-      @relation.to_a
-    end
-
-    def records?
-      records.any?
-    end
-
     def inspect
       "#<#{self.class}:0x#{self.__id__.to_s(16)} #{to_a.inspect}>"
     end
 
     private
 
-    def options_for(*options)
-      options.each_with_object({}) do |option, associations|
+    def apply_binders(records, &block)
+      binders = build_binders_for(records)
+
+      records.map do |record|
+        binders.each do |binder|
+          binder.call(record)
+        end
+
+        yield record
+
+        record
+      end
+    end
+
+    def build_binders_for(records)
+      @batches.map do |operation, options|
+        if CALCULATE_OPERATIONS.include?(operation)
+          pre_calculate_binders_for(records, operation, options)
+        elsif operation == :find
+          pre_find_binders_for(records, options)
+        end
+      end.flatten
+    end
+
+    def pre_find_binders_for(records, association_names)
+      association_names.map do |reader, options|
+        finder, key_column, value_fetcher, one = options.values_at(:finder, :key_column, :value_fetcher, :one)
+        writer = define_accessor(records.first, reader)
+
+        values_by_record = records.each_with_object({}) do |record, hash|
+          hash[record] = value_fetcher.call(record)
+        end
+
+        associated = finder.where(key_column => values_by_record.values.uniq).group_by{ |record| record[key_column] }
+
+        -> (record) {
+          results = associated[values_by_record[record]]
+          record.public_send(writer, one ? results[0] : results )
+        }
+      end
+    end
+
+    def pre_calculate_binders_for(records, operation, association_names)
+      association_names.map do |association_name, column_name|
+        results_by_id = scope_for(association_name).public_send(operation, column_name)
+        reader = [association_name, column_name, operation].compact.join('_')
+        writer = define_accessor(records.first, reader)
+
+        -> (record) { record.public_send(writer, results_by_id.fetch(record.id, 0)) }
+      end
+    end
+
+    def options_for(*association_names)
+      association_names.each_with_object({}) do |option, associations|
         if option.is_a?(Hash)
           associations.merge!(option.symbolize_keys)
         else
