@@ -26,12 +26,6 @@ module ActiveRecord
       end
     end
 
-    # @param [Array<String,Symbol>] association_names - Eager loaded association names. e.g. `[:users, :likes]`
-    # @return [Array<ActiveRecord::Base>]
-    def precount(*association_names)
-      pre_calculate!(:count, *association_names)
-    end
-
     def pre_calculate(operation, *options)
       (@batches[operation.to_sym] ||= {}).merge!(options_for(*options))
       
